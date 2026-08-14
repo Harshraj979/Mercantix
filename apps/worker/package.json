@@ -1,0 +1,24 @@
+{
+  "name": "@mercantix/worker",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "nest start"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.3.0",
+    "@nestjs/config": "^3.1.1",
+    "@nestjs/core": "^10.3.0",
+    "@mercantix/database": "*",
+    "reflect-metadata": "^0.2.1",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.3.0",
+    "@mercantix/tsconfig": "*",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}
