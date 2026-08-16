@@ -7,19 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserStatus{
+enum UserStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
 }
 
-enum RoleName{
+enum RoleName {
   BUYER
   VENDOR
   ADMIN
 }
 
-enum VendorStatus{
+enum VendorStatus {
   DRAFT
   SUBMITTED
   UNDER_REVIEW
@@ -28,20 +28,20 @@ enum VendorStatus{
   SUSPENDED
 }
 
-enum DocumentStatus{
+enum DocumentStatus {
   PENDING
   VERIFIED
   REJECTED
 }
 
-enum ProductStatus{
+enum ProductStatus {
   DRAFT
   PENDING_REVIEW
   ACTIVE
   INACTIVE
 }
 
-enum OrderStatus{
+enum OrderStatus {
   PENDING_PAYMENT
   PAID
   PROCESSING
@@ -93,12 +93,12 @@ enum NotificationStatus {
 
 //USER MODEL
 
-mmodel User{
-  id              String      @id @default(uuid())
-  email           String      @unique
+model User {
+  id              String         @id @default(uuid())
+  email           String         @unique
   passwordHash    String
-  isEmailVerified Boolean     @default(false)
-  status          UserStatus  @default(ACTIVE)
+  isEmailVerified Boolean        @default(false)
+  status          UserStatus     @default(ACTIVE)
   roles           UserRole[]
   vendor          Vendor?
   sessions        Session[]
@@ -109,8 +109,8 @@ mmodel User{
   addresses       Address[]
   notifications   Notification[]
   auditLogs       AuditLog[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 }
 
 // ROLE MODEL
@@ -125,6 +125,7 @@ model UserRole {
   roleId Int
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
   @@id([userId, roleId]) //composite primary key
 }
 
@@ -156,25 +157,26 @@ model Address {
   orders     Order[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
   @@index([userId]) //creates a database index on userId without this postgres has to do a sequential access
 }
 
 model Vendor {
-  id             String              @id @default(uuid())
-  ownerUserId    String              @unique
-  owner          User                @relation(fields: [ownerUserId], references: [id])
+  id             String             @id @default(uuid())
+  ownerUserId    String             @unique
+  owner          User               @relation(fields: [ownerUserId], references: [id])
   storeName      String
-  slug           String              @unique
+  slug           String             @unique
   description    String?
-  status         VendorStatus        @default(DRAFT)
-  commissionRate Decimal             @default(10.00) @db.Decimal(5, 2)
+  status         VendorStatus       @default(DRAFT)
+  commissionRate Decimal            @default(10.00) @db.Decimal(5, 2)
   documents      VendorDocument[]
   bankAccount    VendorBankAccount?
   products       Product[]
   orderItems     OrderItem[]
   payouts        VendorPayout[]
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 }
 
 model VendorDocument {
@@ -193,7 +195,7 @@ model VendorBankAccount {
   vendor        Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   accountHolder String
   bankName      String
-  accountNumber String   // store encrypted in app layer
+  accountNumber String // store encrypted in app layer
   ifscCode      String
   isVerified    Boolean  @default(false)
   createdAt     DateTime @default(now())
@@ -211,38 +213,39 @@ model Category {
 }
 
 model Product {
-  id          String           @id @default(uuid())
-  vendorId    String
-  vendor      Vendor           @relation(fields: [vendorId], references: [id])
-  categoryId  String
-  category    Category         @relation(fields: [categoryId], references: [id])
-  name        String
-  slug        String           @unique
-  description String?
-  tags        String[]
-  price       Decimal          @db.Decimal(10, 2)
-  status      ProductStatus    @default(DRAFT)
-  version     Int              @default(1)
-  images      ProductImage[]
-  variants    ProductVariant[]
-  inventory   Inventory?
-  orderItems  OrderItem[]
-  reviews     Review[]
-  cartItems   CartItem[]
+  id            String           @id @default(uuid())
+  vendorId      String
+  vendor        Vendor           @relation(fields: [vendorId], references: [id])
+  categoryId    String
+  category      Category         @relation(fields: [categoryId], references: [id])
+  name          String
+  slug          String           @unique
+  description   String?
+  tags          String[]
+  price         Decimal          @db.Decimal(10, 2)
+  status        ProductStatus    @default(DRAFT)
+  version       Int              @default(1)
+  images        ProductImage[]
+  variants      ProductVariant[]
+  inventory     Inventory?
+  orderItems    OrderItem[]
+  reviews       Review[]
+  cartItems     CartItem[]
   wishlistItems WishlistItem[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
   @@index([vendorId, status])
   @@index([categoryId, status])
 }
 
 model ProductImage {
-  id         String   @id @default(uuid())
+  id         String  @id @default(uuid())
   productId  String
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   storageKey String
   altText    String?
-  position   Int      @default(0)
+  position   Int     @default(0)
 }
 
 model ProductVariant {
@@ -250,7 +253,7 @@ model ProductVariant {
   productId  String
   product    Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   sku        String            @unique
-  attributes Json              // e.g. { "size": "L", "color": "Red" }
+  attributes Json // e.g. { "size": "L", "color": "Red" }
   price      Decimal?          @db.Decimal(10, 2) // overrides parent price if set
   inventory  VariantInventory?
   createdAt  DateTime          @default(now())
@@ -291,6 +294,7 @@ model CartItem {
   quantity  Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@unique([cartId, productId])
 }
 
@@ -309,21 +313,22 @@ model WishlistItem {
   productId  String
   product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   addedAt    DateTime @default(now())
+
   @@unique([wishlistId, productId])
 }
 
 model Coupon {
-  id            String       @id @default(uuid())
-  code          String       @unique
+  id            String        @id @default(uuid())
+  code          String        @unique
   discountType  DiscountType
-  discountValue Decimal      @db.Decimal(10, 2)
-  minOrderValue Decimal?     @db.Decimal(10, 2)
+  discountValue Decimal       @db.Decimal(10, 2)
+  minOrderValue Decimal?      @db.Decimal(10, 2)
   maxUses       Int?
-  usedCount     Int          @default(0)
+  usedCount     Int           @default(0)
   expiresAt     DateTime?
-  isActive      Boolean      @default(true)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   usages        CouponUsage[]
 }
 
@@ -333,6 +338,7 @@ model CouponUsage {
   coupon    Coupon   @relation(fields: [couponId], references: [id])
   userId    String
   orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id])
   createdAt DateTime @default(now())
 }
 
@@ -358,6 +364,7 @@ model Order {
   couponUsage       CouponUsage?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
+
   @@index([buyerId, createdAt])
 }
 
@@ -378,6 +385,7 @@ model OrderItem {
   review          Review?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
+
   @@index([vendorId, status])
 }
 
@@ -401,7 +409,7 @@ model Payment {
   amount            Decimal       @db.Decimal(10, 2)
   currency          String        @default("INR")
   status            PaymentStatus @default(CREATED)
-  metadata          Json?         // store gateway webhook data
+  metadata          Json? // store gateway webhook data
   idempotencyKey    String        @unique
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -430,9 +438,10 @@ model Review {
   product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItemId String    @unique
   orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
-  rating      Int       // enforce 1-5 in app layer
+  rating      Int // enforce 1-5 in app layer
   comment     String?
   createdAt   DateTime  @default(now())
+
   @@index([productId])
 }
 
@@ -447,6 +456,7 @@ model Notification {
   metadata  Json?
   sentAt    DateTime?
   createdAt DateTime            @default(now())
+
   @@index([userId, createdAt])
   @@index([status])
 }
@@ -460,6 +470,7 @@ model OutboxEvent {
   publishedAt   DateTime?
   retryCount    Int       @default(0)
   createdAt     DateTime  @default(now())
+
   @@index([publishedAt])
 }
 
@@ -472,6 +483,7 @@ model AuditLog {
   entityId    String
   metadata    Json?
   createdAt   DateTime @default(now())
+
   @@index([entityType, entityId])
   @@index([actorUserId])
 }
