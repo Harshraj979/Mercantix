@@ -32,18 +32,18 @@ export class EnvironmentVariables {
     PORT: number = 4000;
 
     @IsString()
-    DATABASE_URL: string;
+    DATABASE_URL!: string;
 
     @IsString()
     @IsOptional()
     REDIS_URL: string = 'redis://localhost:6379';
 
     @IsString()
-    JWT_ACCESS_SECRET: string;
+    JWT_ACCESS_SECRET!: string;
 
     @IsString()
     @IsOptional()
-    JWT_REFRESH_SECRET: string;
+    JWT_REFRESH_SECRET?: string;
 
     @IsString()
     @IsOptional()

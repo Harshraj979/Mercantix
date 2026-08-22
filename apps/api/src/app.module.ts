@@ -15,6 +15,7 @@ import { validate } from './config/env.validation';
         //1. Load and validate env globally
         ConfigModule.forRoot({
             isGlobal: true,
+            envFilePath: ['.env', '../../.env'],
             load: [configuration],
             validate,
         }),
