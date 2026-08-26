@@ -9,6 +9,7 @@ import { TransformInterceptor } from "@common/interceptors/transform.interceptor
 import { PrismaModule } from "@common/prisma/prisma.module";
 import configuration from "./config/configuration";
 import { validate } from './config/env.validation';
+import { AuthModule } from "@modules/auth/auth.module";
 
 @Module({
     imports: [
@@ -21,6 +22,8 @@ import { validate } from './config/env.validation';
         }),
         //2. GLobal database connection 
         PrismaModule,
+        //3. AuthModule
+        AuthModule,
     ],
     controllers: [AppController],
     providers: [
