@@ -3,32 +3,33 @@ import {
     Injectable,
     Logger,
     NotFoundException,
-    UnauthorizedException
-} from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import { JwtService } from "@nestjs/jwt";
-import { PrismaService } from "@common/prisma/prisma.service";
+    UnauthorizedException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '@common/prisma/prisma.service';
 import {
     AuthTokenResponse,
     AuthUserResponse,
     JwtPayload,
     RoleName,
-    UserStatus
-} from "@mercantix/contracts";
+    UserStatus,
+} from '@mercantix/contracts';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { LoginDto, RegisterDto } from "./dto";
+import { LoginDto, RegisterDto } from './dto';
 
 @Injectable()
 export class AuthService {
     private readonly logger = new Logger(AuthService.name);
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
     ) { }
 
-    // register
+    // 1. REGISTER
     async register(
         dto: RegisterDto,
         ipAddress?: string,
@@ -39,86 +40,37 @@ export class AuthService {
         const existingUser = await this.prisma.user.findUnique({
             where: { email },
         });
+
         if (existingUser) {
-            throw new ConflictException("A user with this email already exists.");
+            throw new ConflictException('A user with this email already exists');
         }
 
-        const saltRounds = 12;
-        const passwordHash = await bcrypt.hash(dto.password, saltRounds);
-
+        const passwordHash = await bcrypt.hash(dto.password, 12);
         const targetRole = dto.role || RoleName.BUYER;
-        const user = await this.prisma.$transaction(async (tx) => {
-            const role = await tx.role.upsert({
-                where: { name: targetRole },
-                update: {},
-                create: { name: targetRole },
-            });
 
-            return tx.user.create({
-                data: {
-                    email,
-                    passwordHash,
-                    status: UserStatus.ACTIVE,
-                    roles: {
-                        create: {
-                            roleId: role.id,
-                        },
-                    },
-                },
-                include: {
-                    roles: {
-                        include: {
-                            role: true,
-                        },
-                    },
-                },
-            });
-        });
-
-        const roles = user.roles.map((r) => r.role.name as RoleName);
-        const { accessToken, refreshToken } = await this.generateTokensAndSession(
-            user.id,
-            user.email,
-            roles,
-            ipAddress,
-            userAgent,
-        );
-        return {
-            accessToken,
-            refreshToken,
-            user: this.sanitizeUser(user, roles),
-        };
-    };
-
-    //login
-    async login(
-        dto: LoginDto,
-        ipAddress?: string,
-        userAgent?: string,
-    ): Promise<AuthTokenResponse & { refreshToken: string }> {
-        const email = dto.email.toLowerCase().trim();
-        const user = await this.prisma.user.findUnique({
-            where: { email },
-            include: {
+        const user = await this.prisma.user.create({
+            data: {
+                email,
+                passwordHash,
+                status: UserStatus.ACTIVE,
                 roles: {
-                    include: {
-                        role: true,
+                    create: {
+                        role: {
+                            connectOrCreate: {
+                                where: { name: targetRole },
+                                create: { name: targetRole },
+                            },
+                        },
                     },
                 },
             },
+            include: {
+                roles: {
+                    include: { role: true },
+                },
+            },
         });
-        if (!user) {
-            throw new UnauthorizedException('Invalid email or password');
-        }
-        if (user.status !== UserStatus.ACTIVE) {
-            throw new UnauthorizedException("Account is suspended or inactive");
-        }
 
-        //verifying password
-        const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
-        if (!isPasswordValid) {
-            throw new UnauthorizedException('Invalid email or password');
-        }
         const roles = user.roles.map((r) => r.role.name as RoleName);
         const { accessToken, refreshToken } = await this.generateTokensAndSession(
             user.id,
@@ -135,7 +87,53 @@ export class AuthService {
         };
     }
 
-    // Refresh token
+    // 2. LOGIN
+    async login(
+        dto: LoginDto,
+        ipAddress?: string,
+        userAgent?: string,
+    ): Promise<AuthTokenResponse & { refreshToken: string }> {
+        const email = dto.email.toLowerCase().trim();
+
+        const user = await this.prisma.user.findUnique({
+            where: { email },
+            include: {
+                roles: {
+                    include: { role: true },
+                },
+            },
+        });
+
+        if (!user) {
+            throw new UnauthorizedException('Invalid email or password');
+        }
+
+        if (user.status !== UserStatus.ACTIVE) {
+            throw new UnauthorizedException('Account is suspended or inactive');
+        }
+
+        const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+        if (!isPasswordValid) {
+            throw new UnauthorizedException('Invalid email or password');
+        }
+
+        const roles = user.roles.map((r) => r.role.name as RoleName);
+        const { accessToken, refreshToken } = await this.generateTokensAndSession(
+            user.id,
+            user.email,
+            roles,
+            ipAddress,
+            userAgent,
+        );
+
+        return {
+            accessToken,
+            refreshToken,
+            user: this.sanitizeUser(user, roles),
+        };
+    }
+
+    // 3. REFRESH TOKEN (ROTATION)
     async refreshToken(
         rawRefreshToken: string,
         ipAddress?: string,
@@ -144,55 +142,46 @@ export class AuthService {
         if (!rawRefreshToken) {
             throw new UnauthorizedException('Refresh token is missing');
         }
-        const refreshSecret =
-            this.configService.get<string>('JWT_REFRESH_SECRET') ||
-            this.configService.get<string>('jwt.refreshSecret') ||
-            this.configService.get<string>('JWT_ACCESS_SECRET') ||
-            this.configService.get<string>('jwt.accessSecret');
 
         let payload: JwtPayload;
         try {
             payload = await this.jwtService.verifyAsync<JwtPayload>(rawRefreshToken, {
-                secret: refreshSecret,
+                secret: this.refreshSecret,
             });
-        }
-        catch {
+        } catch {
             throw new UnauthorizedException('Invalid or expired refresh token');
         }
 
-        //find active session
         const session = await this.prisma.session.findUnique({
             where: { id: payload.sessionId },
             include: {
                 user: {
                     include: {
                         roles: {
-                            include: {
-                                role: true,
-                            },
+                            include: { role: true },
                         },
                     },
                 },
             },
         });
 
+        // Reuse detection or expired session
         if (!session || session.revokedAt || session.expiresAt < new Date()) {
             if (session?.revokedAt) {
                 await this.prisma.session.updateMany({
                     where: { userId: payload.sub },
                     data: { revokedAt: new Date() },
-                })
-                this.logger.warn(`Security Alert: Revoked refresh token reused for user ${payload.sub}. All sessions revoked.`,);
+                });
+                this.logger.warn(`Revoked refresh token reuse detected for user ${payload.sub}`);
             }
             throw new UnauthorizedException('Session expired or invalidated');
         }
 
-        const tokenHash = this.hashToken(rawRefreshToken);
-        if (session.refreshTokenHash !== tokenHash) {
+        if (session.refreshTokenHash !== this.hashToken(rawRefreshToken)) {
             await this.prisma.session.update({
                 where: { id: session.id },
                 data: { revokedAt: new Date() },
-            })
+            });
             throw new UnauthorizedException('Invalid session token');
         }
 
@@ -202,36 +191,16 @@ export class AuthService {
         }
 
         const roles = user.roles.map((r) => r.role.name as RoleName);
+        const expiresAt = this.calculateExpiryDate(this.refreshExpiration);
 
-        //Rotate: generate new refresh token,update session
-
-        const refreshExpiryStr =
-            this.configService.get<string>('JWT_REFRESH_EXPIRATION') ||
-            this.configService.get<string>('jwt.refreshExpiration') ||
-            '7d';
-
-        const expiresAt = this.calculateExpiryDate(refreshExpiryStr);
-
+        // Rotate tokens
         const newRefreshToken = await this.jwtService.signAsync(
-            {
-                sub: user.id,
-                email: user.email,
-                roles,
-                sessionId: session.id,
-            },
-            {
-                secret: refreshSecret,
-                expiresIn: refreshExpiryStr,
-            },
-        );
-        const newAccessToken = await this.generateAccessToken(
-            user.id,
-            user.email,
-            roles,
-            session.id,
+            { sub: user.id, email: user.email, roles, sessionId: session.id },
+            { secret: this.refreshSecret, expiresIn: this.refreshExpiration },
         );
 
-        //update existing session with new rotated hash
+        const newAccessToken = await this.generateAccessToken(user.id, user.email, roles, session.id);
+
         await this.prisma.session.update({
             where: { id: session.id },
             data: {
@@ -241,6 +210,7 @@ export class AuthService {
                 userAgent,
             },
         });
+
         return {
             accessToken: newAccessToken,
             refreshToken: newRefreshToken,
@@ -248,50 +218,44 @@ export class AuthService {
         };
     }
 
-    //log out
-    async logout(rawRefreshToken?: string, userId?: string): Promise<void> {
+    // 4. LOGOUT
+    async logout(rawRefreshToken?: string): Promise<void> {
         if (!rawRefreshToken) return;
-        try {
-            const refreshSecret =
-                this.configService.get<string>('JWT_REFRESH_SECRET') ||
-                this.configService.get<string>('jwt.refreshSecret') ||
-                this.configService.get<string>('JWT_ACCESS_SECRET') ||
-                this.configService.get<string>('jwt.accessSecret');
 
+        try {
             const payload = this.jwtService.decode(rawRefreshToken) as JwtPayload;
             if (payload?.sessionId) {
                 await this.prisma.session.updateMany({
-                    where: {
-                        id: payload.sessionId,
-                        revokedAt: null,
-                    },
+                    where: { id: payload.sessionId, revokedAt: null },
                     data: { revokedAt: new Date() },
                 });
             }
-        }
-        catch (error) {
-            this.logger.error('Error during logout session revocation', error);
+        } catch (error) {
+            this.logger.error('Failed to revoke session during logout', error);
         }
     }
 
-    //get profile
+    // 5. GET PROFILE
     async getProfile(userId: string): Promise<AuthUserResponse> {
         const user = await this.prisma.user.findUnique({
             where: { id: userId },
             include: {
                 roles: {
-                    include: {
-                        role: true,
-                    },
+                    include: { role: true },
                 },
             },
         });
-        if (!user) throw new NotFoundException('User not found');
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
         const roles = user.roles.map((r) => r.role.name as RoleName);
         return this.sanitizeUser(user, roles);
     }
 
-    //all the helper methods
+    // --- HELPERS ---
+
     private async generateTokensAndSession(
         userId: string,
         email: string,
@@ -299,117 +263,98 @@ export class AuthService {
         ipAddress?: string,
         userAgent?: string,
     ): Promise<{ accessToken: string; refreshToken: string }> {
-        const refreshExpiryStr =
-            this.configService.get<string>('JWT_REFRESH_EXPIRATION') ||
-            this.configService.get<string>('jwt.refreshExpiration') ||
-            '7d';
-        const expiresAt = this.calculateExpiryDate(refreshExpiryStr);
-        const refreshSecret =
-            this.configService.get<string>('JWT_REFRESH_SECRET') ||
-            this.configService.get<string>('jwt.refreshSecret') ||
-            this.configService.get<string>('JWT_ACCESS_SECRET') ||
-            this.configService.get<string>('jwt.accessSecret');
-        // Create session in DB first to obtain sessionId
-        const placeholderHash = crypto.randomBytes(32).toString('hex');
-        const session = await this.prisma.session.create({
+        const sessionId = crypto.randomUUID();
+        const expiresAt = this.calculateExpiryDate(this.refreshExpiration);
+
+        const refreshToken = await this.jwtService.signAsync(
+            { sub: userId, email, roles, sessionId },
+            { secret: this.refreshSecret, expiresIn: this.refreshExpiration },
+        );
+
+        await this.prisma.session.create({
             data: {
+                id: sessionId,
                 userId,
-                refreshTokenHash: placeholderHash,
+                refreshTokenHash: this.hashToken(refreshToken),
                 ipAddress,
                 userAgent,
                 expiresAt,
             },
         });
-        // Generate Refresh Token containing sessionId
-        const refreshToken = await this.jwtService.signAsync(
-            {
-                sub: userId,
-                email,
-                roles,
-                sessionId: session.id,
-            },
-            {
-                secret: refreshSecret,
-                expiresIn: refreshExpiryStr,
-            },
-        );
-        // Update session with actual hashed refresh token
-        await this.prisma.session.update({
-            where: { id: session.id },
-            data: {
-                refreshTokenHash: this.hashToken(refreshToken),
-            },
-        });
-        // Generate Access Token
-        const accessToken = await this.generateAccessToken(
-            userId,
-            email,
-            roles,
-            session.id,
-        );
+
+        const accessToken = await this.generateAccessToken(userId, email, roles, sessionId);
         return { accessToken, refreshToken };
     }
-    private async generateAccessToken(
+
+    private generateAccessToken(
         userId: string,
         email: string,
         roles: RoleName[],
         sessionId: string,
     ): Promise<string> {
-        const accessSecret =
-            this.configService.get<string>('JWT_ACCESS_SECRET') ||
-            this.configService.get<string>('jwt.accessSecret');
-        const accessExpiry =
-            this.configService.get<string>('JWT_ACCESS_EXPIRATION') ||
-            this.configService.get<string>('jwt.accessExpiration') ||
-            '15m';
-        const payload: JwtPayload = {
-            sub: userId,
-            email,
-            roles,
-            sessionId,
-        };
+        const payload: JwtPayload = { sub: userId, email, roles, sessionId };
         return this.jwtService.signAsync(payload, {
-            secret: accessSecret,
-            expiresIn: accessExpiry,
+            secret: this.accessSecret,
+            expiresIn: this.accessExpiration,
         });
     }
+
     private hashToken(token: string): string {
         return crypto.createHash('sha256').update(token).digest('hex');
     }
+
     private calculateExpiryDate(expiryStr: string): Date {
         const match = expiryStr.match(/^(\d+)([smhd])$/);
         const date = new Date();
         if (!match) {
-            date.setDate(date.getDate() + 7); // Default 7 days
+            date.setDate(date.getDate() + 7);
             return date;
         }
+
         const value = parseInt(match[1], 10);
         const unit = match[2];
-        switch (unit) {
-            case 's':
-                date.setSeconds(date.getSeconds() + value);
-                break;
-            case 'm':
-                date.setMinutes(date.getMinutes() + value);
-                break;
-            case 'h':
-                date.setHours(date.getHours() + value);
-                break;
-            case 'd':
-            default:
-                date.setDate(date.getDate() + value);
-                break;
-        }
+
+        if (unit === 's') date.setSeconds(date.getSeconds() + value);
+        else if (unit === 'm') date.setMinutes(date.getMinutes() + value);
+        else if (unit === 'h') date.setHours(date.getHours() + value);
+        else if (unit === 'd') date.setDate(date.getDate() + value);
+
         return date;
     }
-    private sanitizeUser(user: any, roles: RoleName[]): AuthUserResponse {
+
+    private sanitizeUser(
+        user: {
+            id: string;
+            email: string;
+            isEmailVerified: boolean;
+            status: any;
+            createdAt: Date;
+        },
+        roles: RoleName[],
+    ): AuthUserResponse {
         return {
             id: user.id,
             email: user.email,
             isEmailVerified: user.isEmailVerified,
-            status: user.status,
+            status: user.status as UserStatus,
             roles,
             createdAt: user.createdAt,
         };
+    }
+
+    private get accessSecret(): string {
+        return this.configService.get<string>('jwt.accessSecret')!;
+    }
+
+    private get refreshSecret(): string {
+        return this.configService.get<string>('jwt.refreshSecret') || this.accessSecret;
+    }
+
+    private get accessExpiration(): string {
+        return this.configService.get<string>('jwt.accessExpiration') || '15m';
+    }
+
+    private get refreshExpiration(): string {
+        return this.configService.get<string>('jwt.refreshExpiration') || '7d';
     }
 }
