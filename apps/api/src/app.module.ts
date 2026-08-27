@@ -7,9 +7,10 @@ import { HttpExceptionFilter } from "@common/filters/http-exception.filter";
 import { LoggingInterceptor } from "@common/interceptors/logging.interceptor";
 import { TransformInterceptor } from "@common/interceptors/transform.interceptor";
 import { PrismaModule } from "@common/prisma/prisma.module";
+import { AuthModule } from "@modules/auth/auth.module";
+import { UsersModule } from "@modules/users/users.module";
 import configuration from "./config/configuration";
 import { validate } from './config/env.validation';
-import { AuthModule } from "@modules/auth/auth.module";
 
 @Module({
     imports: [
@@ -20,10 +21,12 @@ import { AuthModule } from "@modules/auth/auth.module";
             load: [configuration],
             validate,
         }),
-        //2. GLobal database connection 
+        //2. Global database connection 
         PrismaModule,
         //3. AuthModule
         AuthModule,
+        //4. UsersModule
+        UsersModule,
     ],
     controllers: [AppController],
     providers: [
@@ -31,19 +34,17 @@ import { AuthModule } from "@modules/auth/auth.module";
             //1. Provide global exception handler
             provide: APP_FILTER,
             useClass: HttpExceptionFilter,
-
         },
         {
             //2. Register global request logging interceptor
-
             provide: APP_INTERCEPTOR,
             useClass: LoggingInterceptor,
         },
         {
-            // 3. register global transform interceptors for the app
+            // 3. Register global transform interceptors for the app
             provide: APP_INTERCEPTOR,
             useClass: TransformInterceptor,
         },
     ]
 })
-export  class AppModule{ };
+export class AppModule {}
