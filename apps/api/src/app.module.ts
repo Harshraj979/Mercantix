@@ -9,6 +9,7 @@ import { TransformInterceptor } from "@common/interceptors/transform.interceptor
 import { PrismaModule } from "@common/prisma/prisma.module";
 import { AuthModule } from "@modules/auth/auth.module";
 import { UsersModule } from "@modules/users/users.module";
+import { VendorsModule } from "@modules/vendors/vendors.module";
 import configuration from "./config/configuration";
 import { validate } from './config/env.validation';
 
@@ -27,6 +28,8 @@ import { validate } from './config/env.validation';
         AuthModule,
         //4. UsersModule
         UsersModule,
+        //5. VendorsModule
+        VendorsModule,
     ],
     controllers: [AppController],
     providers: [
