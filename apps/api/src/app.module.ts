@@ -11,6 +11,7 @@ import { AuthModule } from "@modules/auth/auth.module";
 import { UsersModule } from "@modules/users/users.module";
 import { VendorsModule } from "@modules/vendors/vendors.module";
 import { ProductsModule } from "@modules/products/products.module";
+import { CartsModule } from "@modules/carts/carts.module";
 import configuration from "./config/configuration";
 import { validate } from './config/env.validation';
 
@@ -33,6 +34,8 @@ import { validate } from './config/env.validation';
         VendorsModule,
         //6. ProductsModule
         ProductsModule,
+        //7. CartsModule
+        CartsModule,
     ],
     controllers: [AppController],
     providers: [
