@@ -10,6 +10,7 @@ import { PrismaModule } from "@common/prisma/prisma.module";
 import { AuthModule } from "@modules/auth/auth.module";
 import { UsersModule } from "@modules/users/users.module";
 import { VendorsModule } from "@modules/vendors/vendors.module";
+import { ProductsModule } from "@modules/products/products.module";
 import configuration from "./config/configuration";
 import { validate } from './config/env.validation';
 
@@ -30,6 +31,8 @@ import { validate } from './config/env.validation';
         UsersModule,
         //5. VendorsModule
         VendorsModule,
+        //6. ProductsModule
+        ProductsModule,
     ],
     controllers: [AppController],
     providers: [
