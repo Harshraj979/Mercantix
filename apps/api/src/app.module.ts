@@ -13,6 +13,7 @@ import { VendorsModule } from "@modules/vendors/vendors.module";
 import { ProductsModule } from "@modules/products/products.module";
 import { CartsModule } from "@modules/carts/carts.module";
 import { OrdersModule } from "@modules/orders/orders.module";
+import { PaymentsModule } from "@modules/payments/payments.module";
 import configuration from "./config/configuration";
 import { validate } from './config/env.validation';
 
@@ -39,6 +40,8 @@ import { validate } from './config/env.validation';
         CartsModule,
         //8. OrdersModule
         OrdersModule,
+        //9. PaymentsModule
+        PaymentsModule,
     ],
     controllers: [AppController],
     providers: [
