@@ -5,3 +5,5 @@ export * from './products';
 export * from './carts';
 export * from './orders';
 export * from './payments';
+export * from './inventory';
+export * from './reviews';
