@@ -14,6 +14,9 @@ import { ProductsModule } from "@modules/products/products.module";
 import { CartsModule } from "@modules/carts/carts.module";
 import { OrdersModule } from "@modules/orders/orders.module";
 import { PaymentsModule } from "@modules/payments/payments.module";
+import { InventoryModule } from "@modules/inventory/inventory.module";
+import { ReviewsModule } from "@modules/reviews/reviews.module";
+import { OutboxModule } from "@modules/outbox/outbox.module";
 import configuration from "./config/configuration";
 import { validate } from './config/env.validation';
 
@@ -42,6 +45,12 @@ import { validate } from './config/env.validation';
         OrdersModule,
         //9. PaymentsModule
         PaymentsModule,
+        //10. InventoryModule
+        InventoryModule,
+        //11. ReviewsModule
+        ReviewsModule,
+        //12. OutboxModule (Transactional Outbox Processor)
+        OutboxModule,
     ],
     controllers: [AppController],
     providers: [
