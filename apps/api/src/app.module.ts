@@ -17,6 +17,7 @@ import { PaymentsModule } from "@modules/payments/payments.module";
 import { InventoryModule } from "@modules/inventory/inventory.module";
 import { ReviewsModule } from "@modules/reviews/reviews.module";
 import { OutboxModule } from "@modules/outbox/outbox.module";
+import { CouponsModule } from "@modules/coupons/coupons.module";
 import configuration from "./config/configuration";
 import { validate } from './config/env.validation';
 
@@ -51,6 +52,8 @@ import { validate } from './config/env.validation';
         ReviewsModule,
         //12. OutboxModule (Transactional Outbox Processor)
         OutboxModule,
+        //13. CouponsModule (Promotions & Discounts)
+        CouponsModule,
     ],
     controllers: [AppController],
     providers: [
