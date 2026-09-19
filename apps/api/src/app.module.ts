@@ -18,6 +18,7 @@ import { InventoryModule } from "@modules/inventory/inventory.module";
 import { ReviewsModule } from "@modules/reviews/reviews.module";
 import { OutboxModule } from "@modules/outbox/outbox.module";
 import { CouponsModule } from "@modules/coupons/coupons.module";
+import { NotificationsModule } from "@modules/notifications/notifications.module";
 import configuration from "./config/configuration";
 import { validate } from './config/env.validation';
 
@@ -54,6 +55,8 @@ import { validate } from './config/env.validation';
         OutboxModule,
         //13. CouponsModule (Promotions & Discounts)
         CouponsModule,
+        //14. NotificationsModule (User Notifications & Inbox)
+        NotificationsModule,
     ],
     controllers: [AppController],
     providers: [
