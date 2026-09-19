@@ -7,3 +7,5 @@ export * from './orders';
 export * from './payments';
 export * from './inventory';
 export * from './reviews';
+export * from './coupons';
+export * from './notifications';
