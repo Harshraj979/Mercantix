@@ -68,6 +68,19 @@ export class OrdersController {
     return this.ordersService.getBuyerOrders(user.sub, page, limit);
   }
 
+  @Get('vendor/me')
+  @Roles(RoleName.VENDOR)
+  @ApiOperation({ summary: 'Vendor: Get incoming orders containing vendor products' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  async getVendorOrders(
+    @CurrentUser() user: JwtPayload,
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit = 10,
+  ) {
+    return this.ordersService.getVendorOrders(user.sub, page, limit);
+  }
+
   @Get('admin/all')
   @Roles(RoleName.ADMIN)
   @ApiOperation({ summary: 'Admin: List all orders across platform' })

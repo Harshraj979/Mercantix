@@ -383,6 +383,61 @@ export class OrdersService {
   }
 
   /**
+   * Get Orders containing items sold by the authenticated vendor
+   */
+  async getVendorOrders(vendorUserId: string, page = 1, limit = 10) {
+    const vendor = await this.prisma.vendor.findUnique({
+      where: { ownerUserId: vendorUserId },
+    });
+
+    if (!vendor) {
+      return {
+        data: [],
+        meta: { total: 0, page, limit, totalPages: 0 },
+      };
+    }
+
+    const where = {
+      orderItems: {
+        some: { vendorId: vendor.id },
+      },
+    };
+
+    const skip = (page - 1) * limit;
+
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          orderItems: {
+            include: {
+              product: { select: { name: true, slug: true } },
+              vendor: { select: { storeName: true } },
+            },
+          },
+          payment: true,
+          events: true,
+        },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return {
+      data: orders.map((o: any) => this.formatOrder(o)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+
    * Get Order Details with role-based access control
    */
   async getOrderById(orderId: string, userId: string, roles: string[]) {
