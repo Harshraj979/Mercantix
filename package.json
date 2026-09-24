@@ -13,7 +13,8 @@
     "test": "turbo test",
     "db:generate": "npm run generate --workspace=@mercantix/database",
     "db:migrate": "npm run migrate --workspace=@mercantix/database",
-    "db:studio": "npm run studio --workspace=@mercantix/database"
+    "db:studio": "npm run studio --workspace=@mercantix/database",
+    "db:seed": "npm run seed --workspace=@mercantix/database"
   },
   "devDependencies": {
     "turbo": "^2.0.0"
